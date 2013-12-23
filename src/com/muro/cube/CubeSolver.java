@@ -11,10 +11,8 @@ import java.io.PrintWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Scanner;
-import java.util.Set;
 
 import com.muro.cube.EncodeStrategy.CubieGroup;
 import com.muro.cube.RubiksCube.Face;
@@ -39,7 +37,8 @@ public class CubeSolver {
 		System.out.print(menu);
 
 		// Read in the user's choice.
-		String userSelection = null; 
+		String userSelection = null;
+		int depthLimit = DEFAULT_DEPTH_LIMIT;
 		userSelection = stdIn.nextLine().trim();
 
 		while (!userSelection.equalsIgnoreCase("q")) {
@@ -47,18 +46,36 @@ public class CubeSolver {
 			switch (userSelection.charAt(0)) {
 
 			case '0':
-				System.out.println("Generating the heuristic values for the corner cubies. This may take a while...");
-				iterativeDeepening(new EncodeStrategyCorner(), MAX_CORNER_PERMUTATIONS, "corners.txt");
+				System.out.print("Generating the heuristic values for the edge cubies in group one.\nPlease enter a depth limit: ");
+				userSelection = stdIn.nextLine().trim();
+				try {
+					depthLimit = Integer.parseInt(userSelection);
+				} catch (NumberFormatException e) {
+					System.out.println("Invalid depth limit specified. Using the default depth limit of " + DEFAULT_DEPTH_LIMIT);
+				}
+				iterativeDeepening(new EncodeStrategyCorner(), MAX_CORNER_PERMUTATIONS, "corners.txt", depthLimit);
 				System.out.println("Finished generating heuristic values. Results stored in file 'corners.txt'.");
 				break;
 			case '1':
-				System.out.println("Generating the heuristic values for the edge cubies in group one. This may take a while...");
-				iterativeDeepening(new EncodeStrategyEdge(CubieGroup.EDGE_ONE), MAX_EDGE_PERMUTATIONS, "edges1.txt");;
+				System.out.print("Generating the heuristic values for the edge cubies in group one.\nPlease enter a depth limit: ");
+				userSelection = stdIn.nextLine().trim();
+				try {
+					depthLimit = Integer.parseInt(userSelection);
+				} catch (NumberFormatException e) {
+					System.out.println("Invalid depth limit specified. Using the default depth limit of " + DEFAULT_DEPTH_LIMIT);
+				}
+				iterativeDeepening(new EncodeStrategyEdge(CubieGroup.EDGE_ONE), MAX_EDGE_PERMUTATIONS, "edges1.txt", depthLimit);
 				System.out.println("Finished generating heuristic values. Results stored in file 'edges1.txt'.");
 				break;
 			case '2':
-				System.out.println("Generating the heuristic values for the edge cubies in group two. This may take a while...");
-				iterativeDeepening(new EncodeStrategyEdge(CubieGroup.EDGE_TWO), MAX_EDGE_PERMUTATIONS, "edges2.txt");
+				System.out.print("Generating the heuristic values for the edge cubies in group one.\nPlease enter a depth limit: ");
+				userSelection = stdIn.nextLine().trim();
+				try {
+					depthLimit = Integer.parseInt(userSelection);
+				} catch (NumberFormatException e) {
+					System.out.println("Invalid depth limit specified. Using the default depth limit of " + DEFAULT_DEPTH_LIMIT);
+				}
+				iterativeDeepening(new EncodeStrategyEdge(CubieGroup.EDGE_TWO), MAX_EDGE_PERMUTATIONS, "edges2.txt", depthLimit);
 				System.out.println("Finished generating heuristic values. Results stored in file 'edges2.txt'.");
 				break;
 			case '3':
@@ -389,60 +406,6 @@ public class CubeSolver {
 		return solutionString.toString();
 	}
 
-
-	/**
-	 * Generates the heuristic values for the specified group of cubies.
-	 * 
-	 * @param subproblem specifies the cubie group for which the heuristic values need to be encoded.
-	 */
-	public static void generateHeuristics(EncodeStrategy.CubieGroup subproblem) {
-
-		switch (subproblem) {
-
-		case CORNER:
-			doGenerateRecursive(new EncodeStrategyCorner(), MAX_CORNER_PERMUTATIONS, "corners.txt");
-			break;
-		case EDGE_ONE:
-			doGenerateRecursive(new EncodeStrategyEdge(CubieGroup.EDGE_ONE), MAX_EDGE_PERMUTATIONS, "edges1.txt");
-			break;
-		case EDGE_TWO:
-			doGenerateRecursive(new EncodeStrategyEdge(CubieGroup.EDGE_TWO), MAX_EDGE_PERMUTATIONS, "edges2.txt");
-			break;
-		}
-	}
-
-	/**
-	 * A utility method for initiating the recursive depth-limited search. The encoder specifies the encoding algorithm to use
-	 * which varies according to which group of cubies are being enumerated. The generated h-values are written to the specified
-	 * output file.
-	 * 
-	 * @param encoder the encoding algorithm
-	 * @param tableSize the number of permutations
-	 * @param filename the name of the output file
-	 */
-	private static void doGenerateRecursive(EncodeStrategy encoder, int tableSize, String filename) {
-
-		// Reset statistics...
-		nodeCount = 0;
-		discoveredCount = 0;
-
-		// Stores the calculated heuristic values.
-		byte[] hTable = new byte[tableSize];
-
-		// Start with a solved cube.
-		RubiksCube solved = new RubiksCube();
-		CubeNode rootNode = new CubeNode(null, solved, null, null, 0, 0);
-
-		// Mark the root as visited...
-		hTable[0] = -1;
-
-		// Explore it...
-		dlsRecursive(rootNode, encoder, hTable, DEPTH_LIMIT);
-
-		// Write the results to a file.
-		CubeSolver.writeToFile(hTable, filename);
-	}
-
 	/**
 	 * Generates h-values by performing iterative depending depth-limited search from the goal state.
 	 * 
@@ -450,12 +413,11 @@ public class CubeSolver {
 	 * @param tableSize the number of permutations for the specified group
 	 * @param filename the name of the output file
 	 */
-	private static void iterativeDeepening(EncodeStrategy encoder, int tableSize, String filename) {
+	private static void iterativeDeepening(EncodeStrategy encoder, int tableSize, String filename, int depthLimit) {
 
 		// Reset statistics...
 		nodeCount = 0;
 		discoveredCount = 0;
-		goalCount = 0;
 
 		// Stores the calculated heuristic values.
 		byte[] hTable = new byte[tableSize];
@@ -464,7 +426,7 @@ public class CubeSolver {
 		RubiksCube solved = new RubiksCube();
 		CubeNode rootNode = new CubeNode(null, solved, null, null, 0, 0);
 
-		for (int depth=0; depth < DEPTH_LIMIT; depth+=1) {
+		for (int depth=0; depth < depthLimit; depth+=1) {
 			dlsRecursive(rootNode, encoder, hTable, depth);
 		}
 
@@ -483,11 +445,8 @@ public class CubeSolver {
 	 */
 	private static void dlsRecursive(CubeNode startNode, EncodeStrategy encoder, byte[] hTable, int depthLimit) {
 
-		// Output the status of the search.
-		System.out.println("total nodes generated " + nodeCount + " : new nodes discovered " + discoveredCount + 
-				" : current depth " + startNode.heuristic + " goal nodes encountered " + goalCount + " goal heuristic " + hTable[0]);
-
 		if (startNode.heuristic == depthLimit) {
+			
 			// Only record the heuristic if it is the minimum heuristic value.
 			// If this state has been encountered previously than the current
 			// heuristic value will be greater and therefore less accurate.
@@ -504,97 +463,21 @@ public class CubeSolver {
 
 		// Generate all successors...
 		for (Face currentFace : Face.values()) {
-			for(Rotation currentRotation: Rotation.values()) {
+			
+			// Perform the twist
+			child = startNode.state.performRotation(Rotation.CLOCKWISE, currentFace);
+			// Encode the resulting cubie state.
+			encoding = encoder.doEncode(child);
+			// If this is a goal node we do not want to explore it...
+			if (encoding == 0) 
+				continue;
 
-				// Prevent generation of duplicate nodes where possible...
-				if (currentRotation == startNode.rotation) 
-					continue;
+			// For debugging purposes...
+			nodeCount++;
 
-				// Perform the twist
-				child = startNode.state.performRotation(currentRotation, currentFace);
-				// Encode the resulting cubie state.
-				encoding = encoder.doEncode(child);
-				// If this is a goal node we do not want to explore it...
-				if (encoding == 0) 
-					continue;
-
-				// For debugging purposes...
-				nodeCount++;
-
-				dlsRecursive(new CubeNode(startNode, child, currentRotation, currentFace, startNode.heuristic+1, encoding),
-						encoder, hTable, depthLimit);
-			}
+			dlsRecursive(new CubeNode(startNode, child, Rotation.CLOCKWISE, currentFace, startNode.heuristic+1, encoding),
+					encoder, hTable, depthLimit);
 		}
-	}
-
-	@SuppressWarnings("unused")
-	private static void dfs(EncodeStrategy encoder, int tableSize, String filename) {
-
-		// Reset statistics...
-		nodeCount = 0;
-		discoveredCount = 0;
-
-		// Stores the calculated heuristic values.
-		byte[] hTable = new byte[tableSize];
-
-		// Store the set of nodes to be explored...
-		Deque<CubeNode> frontier = new ArrayDeque<>(300);
-		// Tracks the set of explored nodes.
-		Set<Integer> explored = new HashSet<Integer>();
-		// Tracks the nodes on the frontier.
-		Set<Integer> frontierSet = new HashSet<Integer>();
-
-		// initialize the frontier using the initial state of problem
-		RubiksCube solved = new RubiksCube();
-		CubeNode rootNode = new CubeNode(null, solved, null, null, 0, 0);
-		frontier.push(rootNode);
-		frontierSet.add(0);
-
-		// loop variables
-		CubeNode current = null;
-		int encoding = 0;
-		RubiksCube child = null;
-
-		while (!frontier.isEmpty()) {
-
-			// choose a leaf node and remove it from the frontier
-			current = frontier.pop();
-			frontierSet.remove(current.heuristic);
-
-			// record the heuristic value
-			hTable[encoding] = (byte)current.heuristic;
-			explored.add(current.permId);
-
-			// Output the status of the search.
-			System.out.println("total nodes generated " + nodeCount + " : new nodes discovered " + discoveredCount + 
-					" : current depth " + current.heuristic + " : total explored " + explored.size() + " : frontier " + frontier.size());
-
-			if (current.heuristic < DEPTH_LIMIT) {
-
-				// Generate all successors...
-				for (Face currentFace : Face.values()) {
-					for(Rotation currentRotation: Rotation.values()) {
-						// Prevent the generation of duplicate nodes.
-						if (currentFace == current.face && currentRotation == current.rotation) continue;
-						// Perform the twist
-						child = current.state.performRotation(currentRotation, currentFace);
-						// Encode the resulting cubie state.
-						encoding = encoder.doEncode(child);
-						// For debugging purposes...
-						nodeCount++;
-
-						// expand the chosen node, adding the resulting nodes to the frontier
-						// only if not in the frontier or explored set
-						if (!frontierSet.contains(encoding) && !explored.contains(encoding)) {
-							frontier.add(new CubeNode(current, child, currentRotation, currentFace, current.heuristic + 1, encoding));
-							frontierSet.add(encoding);
-						}
-					}
-				}
-			}
-		}
-
-		writeToFile(hTable, filename);
 	}
 
 	/**
@@ -647,7 +530,7 @@ public class CubeSolver {
 	/**
 	 * The depth-limit of the search tree when performing depth-first search to generate the heuristic values.
 	 */
-	private static final int DEPTH_LIMIT = 11;
+	private static final int DEFAULT_DEPTH_LIMIT = 7;
 
 	/**
 	 * A flag to indicate whether the heuristic tables have already been loaded into memory. 
@@ -674,8 +557,6 @@ public class CubeSolver {
 	private static int discoveredCount = 0;
 
 	private static int nodeCount = 0;
-
-	private static int goalCount = 0;
 
 	public static final byte[] SOLVED_STATE = {
 		0, 3, 6, 9, 12, 15, 18, 21, 
